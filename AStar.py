@@ -2,17 +2,8 @@ import pygame
 import math
 
 WINDOW_SIZE = [600, 600]
-BLACK = (0,0,0)
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-YELLOW = (255, 255, 0)
-GREY = (155, 155, 155)
-LGREEN = (0, 125, 0)
-PURPLE = (255,0,255)
-
 ROWS = 25
 COLUMNS = 25
-
 # Dynamically determined margin, width, and height so you can make squares larger/smaller
 MARGIN = (WINDOW_SIZE[0]+WINDOW_SIZE[1])//((ROWS+COLUMNS)*5)
 WIDTH = (WINDOW_SIZE[0]-(COLUMNS+1)*MARGIN)/COLUMNS
@@ -23,6 +14,26 @@ WINDOW_SIZE[1] -= int((HEIGHT%1)*ROWS)
 # Convert to ints now that the window size fits these grid dimensions nicely
 WIDTH = int(WIDTH)
 HEIGHT = int(HEIGHT)
+
+
+BLACK = (0,0,0)
+
+WHITE = (255, 255, 255)
+GREEN = (0, 150, 0)
+YELLOW = (225, 225, 0)
+RED = (200, 0, 0)
+PURPLE = (150,0,255)
+GREY = (160, 160, 160)
+LPURPLE = (150, 150, 255)
+
+G_EMPTY = 0
+G_START = 1
+G_END = 2
+G_WALL = 3
+G_PATH = 4
+G_OPEN = 5
+G_CLOSED = 6
+
 DIAGONALS = True
 
 def getloc():
@@ -36,16 +47,17 @@ def getloc():
         ycord = ycord - 1
     return (xcord, ycord)
 
-def clear(i):
+# Function to remove the items from the grid
+def remove(items):
     for r in range(ROWS):
         for c in range(COLUMNS):
-            if grid[r][c] == i:
-                grid[r][c] = 0
+            if grid[r][c] in items:
+                grid[r][c] = G_EMPTY
 
-def emptygrid():
+def cleargrid():
     for r in range(ROWS):
         for c in range(COLUMNS):
-            grid[r][c] = 0
+            grid[r][c] = G_EMPTY
 
 class Node:
     def __init__(self, position, parent=None):
@@ -82,12 +94,10 @@ def findpath(s, e):
     fscore = 0
 
     while len(open) > 0:
-        print(len(open))
         open.sort()
         current = open.pop(0)
         closed.append(current)
         x,y = current.position
-
         neighbors = [(x+1,y),(x-1,y),(x,y+1),(x,y-1)]
         if DIAGONALS:
             neighbors.extend([(x+1,y+1),(x-1,y-1),(x+1,y-1),(x-1,y+1)])
@@ -97,16 +107,17 @@ def findpath(s, e):
             newy = pos[1]
             if COLUMNS > newx >= 0 and ROWS > newy >= 0:
                 n = Node(pos, current)
-                if grid[newy][newx] == 1 or n == start or n in closed:
+                if grid[newy][newx] == G_WALL or n == start or n in closed:
                     continue
                 elif n == end:
                     p = []
                     while current != start:
                         p.append(current.position)
                         current = current.parent
-                    return p[::-1]
+                    closed.extend([])
+                    return p[::-1], [n.position for n in open], [m.position for m in closed]
                 else:
-                    grid[newy][newx] = 5
+                    #grid[newy][newx] = G_OPEN
                     n.g = n.dist(current)+current.g
                     n.h = n.dist(end)
                     n.f = n.g+n.h
@@ -120,14 +131,14 @@ def findpath(s, e):
                                     open.pop(i)
                                     open.append(n)
                                 continue
-    return None
+    return [],[],[]
 
 
 grid = []
 for row in range(ROWS):
     grid.append([])
     for column in range(COLUMNS):
-        grid[row].append(0)
+        grid[row].append(G_EMPTY)
 
 pygame.init()
 
@@ -146,55 +157,61 @@ while not done:
             done = True
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                clear(4)
-                clear(5)
-                clear(6)
-                path = findpath(start, end)
+                # Erase old items
+                remove([G_OPEN, G_PATH, G_CLOSED])
+                path, opened, closed = findpath(start, end)
                 if path:
+                    for c in closed[1:]:
+                        grid[c[1]][c[0]] = G_CLOSED
                     for p in path:
-                        grid[p[1]][p[0]] = 6
+                        grid[p[1]][p[0]] = G_PATH
+                    for o in opened:
+                        grid[o[1]][o[0]] = G_OPEN
+
                 else:
                     print("No path found")
             elif event.key == pygame.K_BACKSPACE:
-                emptygrid()
+                cleargrid()
+                start = (0,0)
+                end = (0,0)
             elif event.key == pygame.K_s:
                 x, y = getloc()
-                clear(2)
-                grid[y][x] = 2
+                remove([G_START])
+                grid[y][x] = G_START
                 start = (x,y)
             elif event.key == pygame.K_f:
                 x, y = getloc()
-                clear(3)
-                grid[y][x] = 3
+                remove([G_END])
+                grid[y][x] = G_END
                 end = (x,y)
 
     click = pygame.mouse.get_pressed()
     if click[0]:
         x, y = getloc()
-        grid[y][x] = 1
+        grid[y][x] = G_WALL
     elif click[1]:
-        clear(1)
+        remove([G_WALL])
     elif click[2]:
         x, y = getloc()
-        grid[y][x] = 0
+        grid[y][x] = G_EMPTY
 
 
     screen.fill(BLACK)
     for row in range(ROWS):
         for column in range(COLUMNS):
             color = WHITE
-            if grid[row][column] == 1:
-                color = RED
-            elif grid[row][column] == 2:
-                color = LGREEN
-            elif grid[row][column] == 3:
-                color = YELLOW
-            elif grid[row][column] == 4:
+            if grid[row][column] == G_START:
                 color = GREEN
-            elif grid[row][column] == 5:
-                color = GREY
-            elif grid[row][column] == 6:
+            elif grid[row][column] == G_END:
+                color = YELLOW
+            elif grid[row][column] == G_WALL:
+                color = RED
+            elif grid[row][column] == G_PATH:
                 color = PURPLE
+            elif grid[row][column] == G_OPEN:
+                color = GREY
+            elif grid[row][column] == G_CLOSED:
+                color = LPURPLE
             pygame.draw.rect(screen, color, [(MARGIN + WIDTH) * column + MARGIN, (MARGIN + HEIGHT) * row + MARGIN, WIDTH, HEIGHT])
     clock.tick(60)
 
