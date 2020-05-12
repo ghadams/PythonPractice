@@ -1,6 +1,14 @@
 import pygame
 import math
 
+## Make an Item Class that contains two variables, index and color
+## Create items list with each 'item' type (wall, empty, etc)
+## Or maybe this isn't worth doing
+
+# Maybe create dict of item:color pairs so that you can do colors[WALL] or whatever
+
+
+
 WINDOW_SIZE = [600, 600]
 ROWS = 25
 COLUMNS = 25
@@ -24,7 +32,7 @@ YELLOW = (225, 225, 0)
 RED = (200, 0, 0)
 PURPLE = (150,0,255)
 GREY = (160, 160, 160)
-LPURPLE = (150, 150, 255)
+LPURPLE = (100, 100, 255)
 
 G_EMPTY = 0
 G_START = 1
